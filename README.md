@@ -1,4 +1,43 @@
-# Rover sim results — ditch & terrain A/B test (2026-08-01)
+# Rover sim results — ditch & terrain tests (2026-08-01/02)
+
+## NEW: mission on the bridged course — discovery validated
+
+The trench got a 3 m land bridge at y=+7, inside the tree-free corridor.
+Mission: goal 1 at 12 m (PASS), goal 2 at 22 m — **on the far side of the
+trench** (PASS: nav2 mapped the trench as a wall, found the gap, crossed
+it), goal 3 back at 17 m (re-crossed the bridge, timed out 1.3 m short of
+the exact goal pose while parking). Real obstacle outlines (trees, rocks,
+crates) are drawn under the costmap marks so alignment can be judged; the
+trajectory is colored by time; all goals are marked.
+
+![mission](figures/mission_bridged_course.png)
+
+How the trench appears as the rover explores — left to right (note the
+bridge staying open at y≈7, and rough-ground false flags thinning as the
+debounce and clearing catch up):
+
+![evolution](figures/costmap_evolution.png)
+
+Answers to fair questions about these figures:
+
+- **Why the wiggle?** MPPI runs a reduced sampling budget in sim (400x32
+  at 8 Hz vs 1500x56 at 20 Hz on the Pi) — fewer samples = noisier best
+  command at 0.3 m/s. Cosmetic at these speeds.
+- **Red where nothing is drawn?** Mostly real 5-15 cm bumps in the
+  procedural ground that trip the deliberately conservative 0.10 m step
+  rule — the smooth backdrop just doesn't show them. Plus some leftover
+  single-flicker marks the costmap never cleared (reduced by a 3-tick
+  debounce, not eliminated).
+- **The one engineering casualty of the week**: every mysterious "rover
+  flip" during these tests traced to ONE call — setting the real-time
+  factor on a live gz world via /world/<n>/set_physics corrupts heightmap
+  collision (the rover climbs an invisible 49-degree ramp on flat ground
+  until the physics wedges it). RTF caps are now written into the world
+  file before launch.
+
+---
+
+## Original A/B test (2026-08-01, pre-bridge world)
 
 ## TL;DR
 
