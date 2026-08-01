@@ -26,6 +26,13 @@ did: froze at x=8.3 on the ramp (slope points leaking through ground
 segmentation sat in the collision monitor's height band and read as an
 obstacle dead ahead).
 
+Fairness note: the ramp freeze is partly a sim artifact — the sim's "ground
+truth" pose is planar (z always 0), so on the ramp MARSIM renders the lidar
+from ~0.4 m too low, which exaggerates segmentation leakage (tracked in
+TODO). A real rover might have climbed fine. The ditch blindness however is
+fully real: a returns-only costmap cannot represent a hole, and the one run
+that did reach the trench without the latched ditch flag drove straight in.
+
 ![baseline](figures/terrain_ab_baseline.png)
 
 ## 3 · Terrain node on — ditch marked, never crossed
@@ -33,6 +40,22 @@ obstacle dead ahead).
 The dark red band is the trench as nav2 now sees it. Goals at 12 m and 17 m
 passed; for the goal beyond the trench the rover searched along the wall but
 never drove over the edge (max x = 17.2 vs lip at 18.3).
+
+Two things this figure can easily miscommunicate:
+
+- **The blue plan is one frozen snapshot** (taken the moment the rover first
+  passed x=14), so it starts where the rover was *at that instant* — not at
+  the orange end dot, which is where the rover finished 15 minutes later
+  after goal 3. In reality nav2 replans ~1×/s and the plan always starts at
+  the robot.
+- **That snapshot plan crosses the trench at its south end — through cells
+  the lidar had never observed yet.** The planner treats never-seen ground
+  as crossable, so it aimed for a "gap" beyond the mapped wall. As the rover
+  drove toward it, the lidar saw more trench, the wall grew, and the gap
+  kept retreating — which is why the rover wandered along the wall and never
+  actually crossed. Executed behavior: safe. Drawn plan: optimistic about
+  unseen ground. (nav2 can be told to treat unknown cells as blocked, at the
+  cost of refusing to plan anywhere it hasn't looked yet.)
 
 ![terrain](figures/terrain_ab_terrain.png)
 
