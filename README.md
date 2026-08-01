@@ -59,6 +59,22 @@ Two things this figure can easily miscommunicate:
 
 ![terrain](figures/terrain_ab_terrain.png)
 
+### Did it ever cross? No — here is the time-resolved proof
+
+All 8457 ground-truth samples of the run: max x ever reached is **17.16 m**;
+the trench lip is at **18.3 m**; zero samples past 17.5. The top panel colors
+the trajectory by time; the bottom panel is distance-along-course vs time.
+
+One thing the static figure hid: the "went left, then came back and stopped"
+sequence was **two different goals from the test script**, not one decision
+by the robot. Goal 2 (beyond the trench) ran for 7 minutes: nav2 kept
+replanning toward apparent gaps past the mapped wall, the wall kept growing
+as the lidar saw more trench, the controller kept refusing — then the script
+cancelled it on timeout and sent goal 3 at (17, 0), which is the drive back
+and the final parked position.
+
+![never crossed](figures/terrain_never_crossed.png)
+
 ## 4 · Local costmap, side by side
 
 Top: baseline 6×6 m window — empty ahead, nothing to stop for. Bottom:
