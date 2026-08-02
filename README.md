@@ -35,6 +35,31 @@ Answers to fair questions about these figures:
   until the physics wedges it). RTF caps are now written into the world
   file before launch.
 
+## 2026-08-02: 6-DoF ground truth validated — and it caught a scale bug
+
+The sim's "ground truth" used to be the drive plugin's wheel odometry —
+flat (z always 0). The new source reads the true model pose from gz's
+world pose stream. Validation: full missions with **zero physics wedges**
+(the earlier "flips" traced to ONE call — setting the real-time factor on
+a live world corrupts heightmap collision; now fixed pre-launch), and the
+rover's z tracks the terrain:
+
+![z validation](figures/z_validation.png)
+
+The z-audit also exposed a real bug: **gz scales an image heightmap to
+the image's own maximum pixel (152 here), not 255** — so the whole course
+is 1.678x taller than designed (ramp ~21 deg, trench ~0.85 m), and the
+MARSIM lidar world (generated with the 255 convention) is flatter than
+the physics. Everything validated behaviorally still stands (harder
+course than intended); fixing the generators is the top sim TODO.
+
+The mission animated (rerun, 20 s per frame — costmap growing, plans in
+blue, goals as stars; goal 1 reached to within 0.3 m, goal 3 PASS; the
+goal beyond the trench ran out of time on the now-21-degree ramp and is
+re-queued for after the scale fix):
+
+![animation](figures/mission_animation.gif)
+
 ---
 
 ## Original A/B test (2026-08-01, pre-bridge world)
