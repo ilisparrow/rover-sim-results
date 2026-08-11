@@ -6,11 +6,13 @@ restart without re-reading months of history. Read this + the matrix in
 
 ## FIRST 30 MINUTES — before anything else
 
-1. **Sync this box's commits back to the laptop.** The laptop is the source
-   of truth, but August's work (9 commits, `7639395`..`dbd4ba6` on branch
-   `rover-pi-integration`) was committed HERE on the GPU box
-   (`/media/ilias/bigStorage/projets/gs/ros2_ws_rover`). If you re-export
-   from the laptop without pulling these first, you lose them.
+1. **August's code exists only on the GPU box.** To get it onto the
+   laptop, run ON THE LAPTOP, in the rover repo:
+
+       git pull ssh://ilias@ilias-MS-7B86/media/ilias/bigStorage/projets/gs/ros2_ws_rover rover-pi-integration
+
+   That's the whole procedure. (Do it before re-exporting laptop→GPU-box,
+   or the export overwrites August's work.)
 2. Skim the capability matrix (bottom of docs/SYSTEM_OVERVIEW.md) — it is
    the honest ledger of what is proven vs merely built.
 3. Figures/animations/raw data from all sim tests are mobile-readable at
