@@ -12,6 +12,13 @@ bridge; the trajectory threads it twice:
 
 ![proving](figures/proving_mission.png)
 
+The simulated world itself (lidar point cloud; orange = the mission route
+through the bridge), and every estimator's path against ground truth:
+
+![world](figures/proving_world_3d.png)
+
+![paths](figures/estimator_paths.png)
+
 Same run, the new `/rko_lio/fitness` monitor vs the rover's actual error —
 Hessian conditioning tracks true error at r = +0.52 over 3,883 scans (the
 "odometry is struggling" signal an EKF can threshold on):
