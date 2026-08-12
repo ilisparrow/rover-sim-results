@@ -1,4 +1,33 @@
-# Rover sim results — ditch & terrain tests (2026-08-01/02)
+# Rover sim results — ditch & terrain tests (2026-08-01/12)
+
+## 2026-08-12: THE proving mission — everything at once, under real odometry
+
+The trial terrain got dressed as a real forest (140 trees, bushes, logs,
+rocks — `rover_proving`), and the FULL stack ran with no ground-truth
+crutch: real RKO-LIO odometry, Patchwork++, the terrain node, nav2.
+Result: **3/3 goals PASS** — up the ramp (0.034 m LIO drift), across the
+discovered bridge to the far side of the ditch (0.057 m), and back across
+(0.110 m). Zero odometry failures. The gap in the red wall below is the
+bridge; the trajectory threads it twice:
+
+![proving](figures/proving_mission.png)
+
+Same run, the new `/rko_lio/fitness` monitor vs the rover's actual error —
+Hessian conditioning tracks true error at r = +0.52 over 3,883 scans (the
+"odometry is struggling" signal an EKF can threshold on):
+
+![fitness](figures/fitness_vs_error.png)
+
+Also this session: the heightmap scale bug fixed and physics-verified
+(courses now load at exactly designed geometry); a Voxel-SLAM hybrid mode
+(RKO-LIO as registration prior + degeneracy fallback — mechanism proven in
+replay: 85 degenerate scans ridden with zero resets; the decisive
+plane-poor A/B awaits a trunks-only bag); wheel-odometry node written;
+snapshot watcher's startup blind spot closed. Full status per validation
+level: [VALIDATION_LEDGER.md](VALIDATION_LEDGER.md).
+
+---
+
 
 ## NEW: mission on the bridged course — discovery validated
 
