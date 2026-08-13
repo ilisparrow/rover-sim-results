@@ -1,4 +1,4 @@
-# TartanDrive 2.0 benchmark — fast open dirt (INTERIM)
+# TartanDrive 2.0 benchmark — open dirt at speed (FINAL)
 
 The "featureless open ground" test. TartanDrive 2.0 (CMU): a Yamaha ATV on
 off-road trails and meadows, carrying a **Livox Mid-70** (the AVIA's closest
@@ -46,5 +46,34 @@ vehicle ALREADY MOVING — a mid-mission cold start for every system.
   featureless ground stresses every candidate. The wheel-odometry fusion
   (EKF) is exactly the mitigation for this case.
 
-Chunk 0 (at-rest start, remaining 288 m) downloading; BIEVR retest + final
-verdict to follow.
+## Chunk 0 retest — gentle start, 309 m at <=3 m/s
+
+The same meadow, but starting near rest (0.2 m/s) and driven slower — the
+closest analog to the rover's own regime:
+
+| system | median / p95 / max ATE | failures |
+|---|---|---|
+| **RKO-LIO** | **0.50 / 1.35 / 1.70 m** | 0 |
+| BIEVR | 2.93 / 4.39 / 5.22 m | 0 |
+| Voxel-SLAM | no trajectory (save crash) | 2 resets |
+
+![chunk 0 top view](td2_chunk0_topview.png)
+
+## Final verdict
+
+- **BIEVR's 11 km explosion was a MOVING-START failure, not a terrain
+  failure**: with a still moment to initialize its biases it does 2.9 m on
+  the same meadow. Operational requirement: BIEVR must boot at rest (the
+  rover always does — acceptable, but disqualifies it from mid-mission
+  restart without help).
+- **RKO-LIO at rover-like speeds on open dirt: 0.50 m over 309 m — the best
+  of the three.** Its chunk-1 breakdown was speed-triggered (4-8 m/s).
+  At the rover's <= 2 m/s, RKO-LIO owns this terrain class too.
+- **Voxel-SLAM resets on open dirt at ANY speed tested** (2 resets gentle,
+  41 fast). Its reset storm is terrain-real, not a sim artifact. Trust it
+  as mapper in vegetation/structure; treat its output on open featureless
+  ground as suspect — gate by reset detection.
+- Combined with the BotanicGarden results: no single system wins everywhere.
+  RKO-LIO = odometry always; Voxel-SLAM = mapper/repositioning where there
+  is structure or vegetation; wheel-odom EKF fusion = the open-ground
+  insurance. The architecture stands as designed.
