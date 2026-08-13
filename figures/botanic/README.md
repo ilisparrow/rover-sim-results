@@ -52,7 +52,7 @@ scored 39.7 m ATE here (10x worse than on any other sequence).
 ![scenes](botanic_sample_scenes.png)
 ![robot](botanic_robot.png)
 
-Pending: hybrid (Voxel-SLAM fed with RKO-LIO prior), leak-free
+See [BENCHMARK.md](BENCHMARK.md) for the consolidated accuracy + compute + relocalization benchmark.
 relocalization test (map from 1018-00, query scans from 1018-13), ground
 segmentation on real vegetation.
 
