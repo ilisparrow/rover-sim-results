@@ -7,6 +7,7 @@ trajectories vs ground truth, results table, conclusion.
 |---|---|---|
 | [BotanicGarden](figures/botanic/README.md) | real garden vegetation (rover's exact sensors) | survey-grade, cm |
 | [TartanDrive 2](figures/tartandrive2/BENCHMARK.md) | fast open dirt, meadows, trails (Livox Mid-70) | RTK-fused GPS, dm |
+| [Sensor fusion](figures/fusion/BENCHMARK.md) | LIO+IMU+wheel EKF variants on both datasets + ground detection | as per source dataset |
 | [Simulation campaigns](figures/) | Gazebo/MARSIM terrain + ditch + odometry tests | exact sim truth |
 
 Cross-dataset verdict so far: RKO-LIO = control-loop odometry everywhere
