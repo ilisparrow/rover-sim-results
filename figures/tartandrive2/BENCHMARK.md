@@ -1,76 +1,136 @@
-# Chapter: TartanDrive 2.0 (fast off-road, 7 terrain types)
+# Chapter: TartanDrive 2.0 (fast off-road, 7 tests)
 
 CMU's off-road dataset: a Yamaha ATV at 3–10 m/s (well above rover speeds),
 carrying a **Livox Mid-70** — the AVIA's closest sibling (same non-repetitive
 petal scan, same narrow cone) — plus NovAtel GPS/IMU. Ground truth: RTK-fused
-pose at 50 Hz (~decimetre). One ~120 s chunk tested per scene, session-start
-(at-rest) chunks except where noted. Same three systems, identical raw data.
+pose at 50 Hz (~decimetre). One ~120 s chunk per environment, session-start
+(at-rest) chunks except where noted. All three systems on identical raw data.
+Errors: median / p95 / max ATE vs truth after rigid alignment, in metres.
 
-Data notes (all fixed in our converter): Livox clock 36.9 s off the GPS
-clock; no per-point timestamps (synthesized ramp — validated: deskew-off is
-worse); Mid-70→IMU extrinsic from their calibration.
+Data quirks fixed in our converter: Livox clock 36.9 s off the GPS clock; no
+per-point timestamps (synthesized ramp — validated); Mid-70→IMU extrinsic
+from their calibration files.
 
-## 1. What it looks like
+---
 
-**Turnpike — the main dirt trail:**
-![turnpike](scene_turnpike.jpg)
-**Gupta — wooded trail (closest to forest driving):**
-![gupta](scene_gupta.jpg)
-**Figure-8 — flat open field (purest featureless case):**
-![figure8](scene_figure8.jpg)
-**Slag heap — steep barren rock (closest public analog to burned terrain):**
-![slagheap](scene_slagheap.jpg)
-**Warehouse — trail past structures:**
-![warehouse](scene_warehouse.jpg)
-**Down meadows — open meadow:**
-![meadow](scene_meadow.jpg)
+## 1. Slag heap — steep barren rock (closest public analog to burned terrain)
 
-## 2. Estimated trajectories vs ground truth
+![slag heap](scene_slagheap.jpg)
+![trajectories](topview_slagheap.png)
 
-Black = RTK truth; colored = estimates (rigid-aligned). Voxel-SLAM appears
-only where its save survived (its multi-session crash loses trajectories on
-heavy-reset runs).
-
-| | |
-|---|---|
-| ![turnpike](topview_turnpike.png) | ![gupta](topview_gupta.png) |
-| ![figure8](topview_figure8.png) | ![slagheap](topview_slagheap.png) |
-| ![warehouse](topview_warehouse.png) | ![meadow gentle](topview_meadow_gentle.png) |
-
-Meadow at full ATV speed with a moving start (the stress case):
-![meadow fast](topview_meadow_fast.png)
-
-## 3. Results table
-
-Median / p95 ATE vs RTK truth (m); Voxel-SLAM shown as reset count (its
-failure signature — each reset is a pose discontinuity):
-
-| scene | terrain | RKO-LIO | BIEVR | Voxel-SLAM |
+| system | median | p95 | max | failures |
 |---|---|---|---|---|
-| slag heap | steep barren | 0.57 / 0.97 | **0.50 / 0.92** | 4 resets |
-| figure-8 | flat field | 1.34 / 2.93 | **0.56 / 1.32** | 7 resets |
-| meadow (gentle, ≤3 m/s) | open meadow | **0.50 / 1.35** | 2.93 / 4.39 | 2 resets |
-| turnpike | dirt trail | **4.46 / 7.33** | 13.90 / 31.78 | 46 resets |
-| gupta | wooded trail | 20.38 / 34.19 | **2.72 / 5.03** | 24 resets |
-| warehouse | structures, fast | **20.07 / 79.34** | 5476 (exploded) | 67 resets |
-| meadow (fast, moving start) | open meadow | 57.08 / 145.9 | 11,144 (exploded) | 41 resets |
+| **BIEVR** | **0.50** | 0.92 | 1.01 | 0 |
+| RKO-LIO | 0.57 | 0.97 | 1.22 | 0 |
+| Voxel-SLAM | — | — | — | 4 resets, trajectory lost |
 
-## 4. Conclusion
+Near-tie, both excellent. Bare relief feeds the lidar — the burned-forest
+analog is EASY.
 
-- **No single winner.** BIEVR takes flat/featureless and wooded trail
-  (its bump-image design shows); RKO-LIO takes gentle meadow and stays
-  least-bad when things get violent; both break at full ATV aggression.
-- **BIEVR's two explosions both trace to initialization** (moving start /
-  aggressive early motion). When it initializes cleanly it never diverged.
-  Operational rule: BIEVR must boot at rest.
-- **Voxel-SLAM reset-storms on every fast scene** (4–67 resets). Its sim
-  reset disease is terrain-real: fast motion + weak structure. Use it as a
-  mapper only where vegetation/structure exists, always behind reset
-  detection — never as control-loop odometry off-road.
-- **Slag heap is the happiest surprise**: steep barren rock — the nearest
-  thing to burned forest in any public dataset — was EASY (both ≤0.57 m).
-  Terrain relief feeds the lidar. Burned, rolling terrain is likely
-  friendlier to LIO than flat grass.
-- Speeds here are 3–10× the rover's. At rover-like pace (gentle meadow row)
-  every system behaves; the failures live at speeds we don't drive. The
-  terrain-class lessons, not the absolute numbers, are the takeaway.
+---
+
+## 2. Figure-8 — flat open field (purest featureless case)
+
+![figure-8](scene_figure8.jpg)
+![trajectories](topview_figure8.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **BIEVR** | **0.56** | 1.32 | 1.72 | 0 |
+| RKO-LIO | 1.34 | 2.93 | 3.70 | 0 |
+| Voxel-SLAM | — | — | — | 7 resets, trajectory lost |
+
+BIEVR's home-turf claim validated: 2.4x better than RKO-LIO on flat grass.
+
+---
+
+## 3. Down meadows — open meadow, gentle pace (≤3 m/s — the rover's regime)
+
+![meadow](scene_meadow.jpg)
+![trajectories](topview_meadow_gentle.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **RKO-LIO** | **0.50** | 1.35 | 1.70 | 0 |
+| BIEVR | 2.93 | 4.39 | 5.22 | 0 |
+| Voxel-SLAM | — | — | — | 2 resets, trajectory lost |
+
+At rover-like speed the order flips back: RKO-LIO best.
+
+---
+
+## 4. Turnpike — the main dirt trail
+
+![turnpike](scene_turnpike.jpg)
+![trajectories](topview_turnpike.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **RKO-LIO** | **4.46** | 7.33 | 12.57 | 0, degraded |
+| BIEVR | 13.90 | 31.78 | 34.92 | 0, degraded badly |
+| Voxel-SLAM | — | — | — | 46 resets |
+
+Fast trail with berms: nobody clean, RKO-LIO least-bad.
+
+---
+
+## 5. Gupta — wooded trail (closest to forest driving)
+
+![gupta](scene_gupta.jpg)
+![trajectories](topview_gupta.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **BIEVR** | **2.72** | 5.03 | 5.49 | 0 |
+| RKO-LIO | 20.38 | 34.19 | 35.00 | broke mid-run |
+| Voxel-SLAM | — | — | — | 24 resets |
+
+The woods flip it again: BIEVR 7x better; RKO-LIO broke.
+
+---
+
+## 6. Warehouse — trail past structures, fast
+
+![warehouse](scene_warehouse.jpg)
+![trajectories](topview_warehouse.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **RKO-LIO** | **20.07** | 79.34 | 94.34 | degraded badly |
+| Voxel-SLAM | 3.24 | 24.47 | 51.61 | 67 resets (partial trajectory, 41% of run) |
+| BIEVR | 5476 | 14004 | 15714 | EXPLODED (aggressive early motion) |
+
+The hardest run: aggressive driving; nothing survived intact.
+
+---
+
+## 7. Down meadows — full ATV speed, MOVING start (the stress case)
+
+![meadow](scene_meadow.jpg)
+![trajectories](topview_meadow_fast.png)
+
+| system | median | p95 | max | failures |
+|---|---|---|---|---|
+| **RKO-LIO** | **57.08** | 145.89 | 169.48 | broke mid-run |
+| BIEVR | 11144 | 30571 | 37489 | EXPLODED (no at-rest init) |
+| Voxel-SLAM | — | — | — | 41 resets |
+
+Same meadow as test 3 — speed and the moving start break everything.
+
+---
+
+## Conclusion
+
+- **Terrain picks the winner.** BIEVR: flat/featureless + woods (its
+  bump-image design working as advertised). RKO-LIO: gentle pace + least-bad
+  everywhere violent. Neither survives full ATV aggression.
+- **Every BIEVR explosion traces to initialization** (moving start /
+  aggressive early motion). Cleanly initialized, it never diverged.
+  Operational rule: BIEVR boots at rest.
+- **Voxel-SLAM reset-storms on every test here** (2–67). Terrain-real, not a
+  sim artifact: fast motion + weak structure. Mapper in vegetation/structure
+  only, always behind reset detection — never control-loop odometry off-road.
+- **Slag heap being trivially easy is the best news for the burned-forest
+  mission** — barren relief is lidar-friendly.
+- The rover drives 3–10x slower than this ATV; at that pace (test 3) all
+  systems behave. Terrain-class lessons transfer; absolute numbers do not.
