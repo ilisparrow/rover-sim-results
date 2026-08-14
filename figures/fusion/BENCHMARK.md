@@ -1,24 +1,20 @@
 # Chapter: Sensor fusion (LIO + IMU + wheel odometry)
 
-Does fusing the rover's sensors beat lidar odometry alone — especially where
-lidar struggles? Filter: `robot_localization` EKF (the rover's own fusion
-tool), loosely coupled, 2-D mode. Sensor suite = exactly the rover's: lidar
-odometry (RKO-LIO, computed by us from raw lidar+IMU), IMU gyro, wheel
-odometry TWIST (speed + yaw rate; never its integrated pose).
+Does fusing the rover's sensors beat lidar odometry alone? Filter:
+`robot_localization` EKF (the rover's own fusion tool), loosely coupled, 2-D
+mode. Sensor suite = exactly the rover's: lidar odometry (RKO-LIO, computed
+by us from raw lidar+IMU), IMU gyro, wheel odometry TWIST (speed + yaw rate,
+never its integrated pose). All estimates computed on our side from raw bag
+streams (no dataset odometry products; wheel = the recorded encoder speed
+stream, the rawest wheel data any dataset ships).
 
-Raw-data policy: every estimate is computed on our side from the bags' raw
-streams. The one nuance: no public dataset ships raw encoder ticks — the
-wheel "sensor" is the recorded encoder-derived speed stream, the same thing
-our own wheel_odom node produces from VESC erpm.
+**Verdict up front: as configured, fusion did NOT beat LIO alone — an
+earlier draft of this page claimed it did, based on a scoring window chosen
+after seeing the filter's transient. That was wrong. Corrected analysis
+below, with the score-vs-window sensitivity shown openly.**
 
-Variants per environment:
-- **LIO alone** — the current baseline
-- **LIO + wheel + IMU** — the planned rover architecture
-- **wheel + IMU dead-reckoning** — the "lidar died" fallback
-
-Scores: median / p95 / max error (m) vs ground truth, first 120 s (garden) /
-30 s (TartanDrive) excluded everywhere — EKFs need a convergence window, and
-scoring the transient punishes all variants with the same alignment skew.
+Variants per environment: LIO alone · LIO+wheel+IMU (EKF) · wheel+IMU
+dead-reckoning (EKF, no lidar).
 
 ---
 
@@ -28,26 +24,34 @@ scoring the transient punishes all variants with the same alignment skew.
 
 | variant | median | p95 | max |
 |---|---|---|---|
-| **LIO alone** | **0.099** | 0.230 | 0.293 |
-| LIO+wheel+IMU | 0.111 | 0.267 | 0.362 |
-| wheel+IMU DR | 0.873 | 1.773 | 2.622 |
+| **LIO alone** | **0.30** | 0.71 | 0.76 |
+| LIO+wheel+IMU | 0.38 | 0.80 | 0.93 |
+| wheel+IMU DR | 12.1 | 21.7 | 21.7 |
 
-When LIO is healthy, fusion neither helps nor hurts (+1 cm). Dead-reckoning
-alone: 0.4% of distance — limp-home quality.
+Fusion adds a little noise, no benefit. (Post-convergence the two are
+0.10 vs 0.11 — indistinguishable.) DR alone drifts 6% of distance.
 
 ## 2. Garden, the lidar-killer (BotanicGarden 1006-01, 766 m — LIO degraded)
 
 ![trajectories](fusion_topview_1006_01.png)
 
-| variant | median | p95 | max |
-|---|---|---|---|
-| **LIO+wheel+IMU** | **1.898** | 4.153 | 24.485 |
-| LIO alone | 2.553 | 5.560 | 7.837 |
-| wheel+IMU DR | 52.8 | 162.4 | 183.0 |
+Median (max) error vs how much of the run's start is excluded from scoring —
+shown in full because the answer DEPENDS on it, and that dependence is the
+finding:
 
-Where LIO degrades, fusion buys **25%** median improvement — the wheel speed
-constrains the drift. (Its one 24 m excursion is a filter transient; the
-alarm-gated version below is the answer.)
+| scored from | LIO alone | LIO+wheel+IMU | wheel+IMU DR |
+|---|---|---|---|
+| start | **3.35 (7.2)** | 6.80 (81.9) | 65.8 (199) |
+| t+30 s | **3.09 (7.5)** | 4.33 (84.9) | 64.0 (194) |
+| t+60 s | 2.97 **(8.0)** | 2.30 (89.1) | 53.4 (193) |
+| t+120 s | 2.55 **(7.8)** | 1.90 (24.5) | 52.8 (183) |
+| t+180 s | 1.81 (5.9) | 1.60 (4.8) | 52.0 (163) |
+
+Read honestly: the fused filter eventually converges to LIO-comparable
+medians, but it spends its first minutes tens of metres wrong and keeps
+25-90 m excursions long after. A control-loop odometry is judged by its
+worst case: LIO's worst moment is 8 m; the filter's is 90 m. **LIO alone
+wins.**
 
 ## 3. Fast open meadow (TartanDrive 2, 475 m @ 4-8 m/s — LIO broken)
 
@@ -56,14 +60,12 @@ alarm-gated version below is the answer.)
 
 | variant | median | p95 | max |
 |---|---|---|---|
-| **wheel+IMU DR** | **17.5** | 47.3 | 49.7 |
-| LIO+wheel+IMU | 23.8 | 94.6 | 103.2 |
-| LIO alone | 35.2 | 104.7 | 113.3 |
+| **wheel+IMU DR** | **25.8** | 42.1 | 44.8 |
+| LIO+wheel+IMU | 42.7 | 99.8 | 117.4 |
+| LIO alone | 57.1 | 145.9 | 169.5 |
 
-The decisive lesson: when LIO is confidently WRONG (not just noisy), fusion
-helps (-32%) but cannot fully reject it — the broken sensor keeps poisoning
-the filter. Dead-reckoning beats both. A filter can only be as good as its
-ability to KNOW which input is lying.
+Everything fails; the ordering is still informative: with lidar odometry
+confidently wrong, blending it in is worse than ignoring it entirely.
 
 ---
 
@@ -75,32 +77,31 @@ Same pipeline as the rover, on the TartanDrive gentle meadow (309 m):
 ![one scan, top + side](td2_seg_scan.png)
 ![terrain grid](td2_terrain_grid.png)
 
-The meadow corridor comes out drivable-green with vegetation walls red; the
-side profile shows the grass canopy handled as ground. The garden equivalent
-lives in the [BotanicGarden chapter](../botanic/README.md). Note the tilted
-lidar (13 degrees down on the ATV) had to be leveled into the IMU frame
-first — the segmenter assumes a gravity-aligned cloud, worth remembering if
-the rover's lidar mount ever changes.
+Meadow corridor drivable-green, vegetation walls red; the side profile shows
+the grass canopy handled as ground. Garden equivalent in the
+[BotanicGarden chapter](../botanic/README.md). Gotcha: the segmenter assumes
+a gravity-aligned cloud — the ATV's 13-degree-tilted lidar had to be leveled
+into the IMU frame first.
 
 ## Summary report
 
-1. **Fusion is free insurance**: never worse than LIO alone (within 1 cm on
-   healthy runs), 25-32% better once LIO degrades.
-2. **Fusion is not a resurrection spell**: a confidently-wrong LIO still
-   poisons the filter. On broken-LIO terrain, pure dead-reckoning won. The
-   missing piece is HEALTH GATING: drop the LIO input when it is lying —
-   which is exactly what our LIO alarm (fitness monitor) detects. Wiring
-   alarm -> EKF input gate converts the meadow row from 23.8 m to ~17.5 m
-   automatically, and the garden rows keep their fused accuracy.
-3. **Dead-reckoning quality** (wheel twist + gyro): 0.4% of distance on
-   smooth ground, ~7% on the garden's long course, ~4% at ATV speed. Enough
-   to stop safely and limp home; not enough to navigate.
-4. **Tuning lessons for the rover's EKF config** (all learned the hard way
-   here): (a) a fast wheel stream OUT-VOTES a slow LIO unless LIO deltas get
-   ~100x tighter covariance; (b) wheel pose must never be fused, only twist;
-   (c) the filter needs ~2 min of convergence after boot before its output
-   is trustworthy; (d) replay tests must run on sim time or the filter
-   silently starves.
-5. Architecture confirmed by data, end to end: RKO-LIO odometry + wheel/IMU
-   fusion + alarm gating + Voxel-SLAM as mapper — every piece now has a
-   number behind it.
+1. **LIO alone is the best odometry everywhere it functions.** Fusion as
+   configured added noise when LIO was healthy, long transients and 25-90 m
+   excursions when LIO was degraded, and could not save the run where LIO
+   was broken. The architecture keeps RKO-LIO pure in the control loop.
+2. **Wheel+IMU dead-reckoning is a real but limited fallback**: 0.4-6% of
+   distance on rover-like courses. Enough to stop safely / limp a short
+   distance when lidar dies; not navigation. Worth keeping as a monitored
+   FALLBACK (a switch when the LIO alarm fires), NOT as a permanent blend.
+3. **Open question, explicitly untested**: whether a carefully tuned or
+   alarm-gated filter could do better. The claim "fusion helps when LIO
+   degrades" is NOT supported by this data as configured — treat any future
+   version of that claim as needing new evidence.
+4. **Methodology lesson (recorded so it isn't repeated)**: choosing a
+   scoring window after seeing the filter's behavior flipped this page's
+   conclusion once. Score windows must be fixed before looking, and figures
+   and tables must show the same numbers.
+5. Tuning facts that remain true and useful: wheel pose must never be fused
+   (only twist); a fast wheel stream out-votes slow LIO deltas unless
+   covariances compensate; replay tests need sim time; the EKF has a
+   multi-minute convergence transient that must be measured, not hidden.
