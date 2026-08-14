@@ -115,7 +115,16 @@ The hardest run: aggressive driving; nothing survived intact.
 | BIEVR | 11144 | 30571 | 37489 | EXPLODED (no at-rest init) |
 | Voxel-SLAM | — | — | — | 41 resets |
 
-Same meadow as test 3 — speed and the moving start break everything.
+Same meadow as test 3 — but why does 4-8 m/s (only 15-30 km/h) break it,
+when cars run lidar odometry at highway speed? Because the limit is speed
+RELATIVE to feature persistence, not speed itself: grass texture stops being
+recognizable within ~1 m of viewpoint change, so at 0.5-0.8 m per scan,
+consecutive scans no longer share details — while a city wall stays
+matchable for hundreds of scans. Add the ATV's violent pitch/roll on rough
+ground (which smears scans far more than forward speed does) and the Mid-70's
+narrow cone (only the fast-expiring grass ahead, never the stable treelines
+to the sides), and the runaway follows. Same speed on the slag heap's
+persistent rock shapes: 0.5 m accuracy.
 
 ---
 
@@ -132,5 +141,8 @@ Same meadow as test 3 — speed and the moving start break everything.
   only, always behind reset detection — never control-loop odometry off-road.
 - **Slag heap being trivially easy is the best news for the burned-forest
   mission** — barren relief is lidar-friendly.
-- The rover drives 3–10x slower than this ATV; at that pace (test 3) all
-  systems behave. Terrain-class lessons transfer; absolute numbers do not.
+- The failures are NOT about absolute speed (15-30 km/h is modest): they are
+  speed x terrain x field-of-view — motion outrunning how long the terrain
+  stays recognizable to a narrow-cone lidar. The rover's 1-2 m/s keeps even
+  grass matchable (test 3: 0.50 m). Terrain-class lessons transfer; absolute
+  numbers do not.
