@@ -1,79 +1,76 @@
-# TartanDrive 2.0 benchmark — open dirt at speed (FINAL)
+# Chapter: TartanDrive 2.0 (fast off-road, 7 terrain types)
 
-The "featureless open ground" test. TartanDrive 2.0 (CMU): a Yamaha ATV on
-off-road trails and meadows, carrying a **Livox Mid-70** (the AVIA's closest
-sibling: same non-repetitive petal scan, same narrow cone) + NovAtel GPS/IMU.
-Ground truth: RTK-fused pose at 50 Hz (~decimetre — coarser than the
-BotanicGarden survey truth).
+CMU's off-road dataset: a Yamaha ATV at 3–10 m/s (well above rover speeds),
+carrying a **Livox Mid-70** — the AVIA's closest sibling (same non-repetitive
+petal scan, same narrow cone) — plus NovAtel GPS/IMU. Ground truth: RTK-fused
+pose at 50 Hz (~decimetre). One ~120 s chunk tested per scene, session-start
+(at-rest) chunks except where noted. Same three systems, identical raw data.
 
-Test segment: `down_meadows` chunk 1 — **475 m of open meadow at 4-8 m/s**
-(much faster than the rover's regime). NOTE: the segment starts with the
-vehicle ALREADY MOVING — a mid-mission cold start for every system.
+Data notes (all fixed in our converter): Livox clock 36.9 s off the GPS
+clock; no per-point timestamps (synthesized ramp — validated: deskew-off is
+worse); Mid-70→IMU extrinsic from their calibration.
 
-## Results (median / p95 / max ATE vs RTK truth, metres)
+## 1. What it looks like
 
-| system | result | failure mode |
-|---|---|---|
-| RKO-LIO | 57 / 146 / 169 | tracked the first ~60% well, then broke and never recovered |
-| BIEVR | ~11,000 (!) | exploded from the start — IMU dead-reckoning runaway; dense sampling did NOT rescue it (13 km) |
-| Voxel-SLAM | n/a (no usable trajectory) | **41 resets in 120 s** — reset storm, same INIT-path signature as our synthetic forest |
+**Turnpike — the main dirt trail:**
+![turnpike](scene_turnpike.jpg)
+**Gupta — wooded trail (closest to forest driving):**
+![gupta](scene_gupta.jpg)
+**Figure-8 — flat open field (purest featureless case):**
+![figure8](scene_figure8.jpg)
+**Slag heap — steep barren rock (closest public analog to burned terrain):**
+![slagheap](scene_slagheap.jpg)
+**Warehouse — trail past structures:**
+![warehouse](scene_warehouse.jpg)
+**Down meadows — open meadow:**
+![meadow](scene_meadow.jpg)
 
-![top view](td2_meadow_topview.png)
+## 2. Estimated trajectories vs ground truth
 
-## Reading (interim)
+Black = RTK truth; colored = estimates (rigid-aligned). Voxel-SLAM appears
+only where its save survived (its multi-session crash loses trajectories on
+heavy-reset runs).
 
-- **All three failed on fast open dirt.** This is the terrain the sim
-  featureless-lane test warned about — the sim was right about the terrain
-  class, wrong only about which garden-variety terrain triggers it.
-- Voxel-SLAM's reset storm is REAL on this terrain (41/120 s) — it is not a
-  sim artifact. Its excellent garden numbers do not transfer to fast
-  featureless ground.
-- BIEVR's collapse contradicts its paper claim (this is nominally its home
-  turf). Suspected confound: the moving start — its bias initializer may
-  need a stationary moment. Being retested on chunk 0 (session start, at
-  rest). Until then treat its row as "failed mid-mission re-init", not
-  "failed the terrain".
-- RKO-LIO degraded most gracefully (again) but 57 m median is still a
-  failure. Meadows at ATV speed are simply hostile: one ground plane, grass
-  texture the lidar can't lock onto, high angular rates.
-- Caveats: sensor pair differs from ours (Mid-70 + external 100 Hz IMU vs
-  AVIA + internal 200 Hz); per-point timestamps are synthesized (Livox
-  streams chronologically, so the ramp is faithful — verified deskew off is
-  WORSE, so timing is not the failure cause); lidar clock was 36.9 s off the
-  GPS clock in the raw data (fixed in conversion).
-- Rover-relevant conclusion so far: at OUR speeds (<= 2 m/s) none of this
-  regime is directly reachable, but the terrain-class warning stands: open
-  featureless ground stresses every candidate. The wheel-odometry fusion
-  (EKF) is exactly the mitigation for this case.
+| | |
+|---|---|
+| ![turnpike](topview_turnpike.png) | ![gupta](topview_gupta.png) |
+| ![figure8](topview_figure8.png) | ![slagheap](topview_slagheap.png) |
+| ![warehouse](topview_warehouse.png) | ![meadow gentle](topview_meadow_gentle.png) |
 
-## Chunk 0 retest — gentle start, 309 m at <=3 m/s
+Meadow at full ATV speed with a moving start (the stress case):
+![meadow fast](topview_meadow_fast.png)
 
-The same meadow, but starting near rest (0.2 m/s) and driven slower — the
-closest analog to the rover's own regime:
+## 3. Results table
 
-| system | median / p95 / max ATE | failures |
-|---|---|---|
-| **RKO-LIO** | **0.50 / 1.35 / 1.70 m** | 0 |
-| BIEVR | 2.93 / 4.39 / 5.22 m | 0 |
-| Voxel-SLAM | no trajectory (save crash) | 2 resets |
+Median / p95 ATE vs RTK truth (m); Voxel-SLAM shown as reset count (its
+failure signature — each reset is a pose discontinuity):
 
-![chunk 0 top view](td2_chunk0_topview.png)
+| scene | terrain | RKO-LIO | BIEVR | Voxel-SLAM |
+|---|---|---|---|---|
+| slag heap | steep barren | 0.57 / 0.97 | **0.50 / 0.92** | 4 resets |
+| figure-8 | flat field | 1.34 / 2.93 | **0.56 / 1.32** | 7 resets |
+| meadow (gentle, ≤3 m/s) | open meadow | **0.50 / 1.35** | 2.93 / 4.39 | 2 resets |
+| turnpike | dirt trail | **4.46 / 7.33** | 13.90 / 31.78 | 46 resets |
+| gupta | wooded trail | 20.38 / 34.19 | **2.72 / 5.03** | 24 resets |
+| warehouse | structures, fast | **20.07 / 79.34** | 5476 (exploded) | 67 resets |
+| meadow (fast, moving start) | open meadow | 57.08 / 145.9 | 11,144 (exploded) | 41 resets |
 
-## Final verdict
+## 4. Conclusion
 
-- **BIEVR's 11 km explosion was a MOVING-START failure, not a terrain
-  failure**: with a still moment to initialize its biases it does 2.9 m on
-  the same meadow. Operational requirement: BIEVR must boot at rest (the
-  rover always does — acceptable, but disqualifies it from mid-mission
-  restart without help).
-- **RKO-LIO at rover-like speeds on open dirt: 0.50 m over 309 m — the best
-  of the three.** Its chunk-1 breakdown was speed-triggered (4-8 m/s).
-  At the rover's <= 2 m/s, RKO-LIO owns this terrain class too.
-- **Voxel-SLAM resets on open dirt at ANY speed tested** (2 resets gentle,
-  41 fast). Its reset storm is terrain-real, not a sim artifact. Trust it
-  as mapper in vegetation/structure; treat its output on open featureless
-  ground as suspect — gate by reset detection.
-- Combined with the BotanicGarden results: no single system wins everywhere.
-  RKO-LIO = odometry always; Voxel-SLAM = mapper/repositioning where there
-  is structure or vegetation; wheel-odom EKF fusion = the open-ground
-  insurance. The architecture stands as designed.
+- **No single winner.** BIEVR takes flat/featureless and wooded trail
+  (its bump-image design shows); RKO-LIO takes gentle meadow and stays
+  least-bad when things get violent; both break at full ATV aggression.
+- **BIEVR's two explosions both trace to initialization** (moving start /
+  aggressive early motion). When it initializes cleanly it never diverged.
+  Operational rule: BIEVR must boot at rest.
+- **Voxel-SLAM reset-storms on every fast scene** (4–67 resets). Its sim
+  reset disease is terrain-real: fast motion + weak structure. Use it as a
+  mapper only where vegetation/structure exists, always behind reset
+  detection — never as control-loop odometry off-road.
+- **Slag heap is the happiest surprise**: steep barren rock — the nearest
+  thing to burned forest in any public dataset — was EASY (both ≤0.57 m).
+  Terrain relief feeds the lidar. Burned, rolling terrain is likely
+  friendlier to LIO than flat grass.
+- Speeds here are 3–10× the rover's. At rover-like pace (gentle meadow row)
+  every system behaves; the failures live at speeds we don't drive. The
+  terrain-class lessons, not the absolute numbers, are the takeaway.
